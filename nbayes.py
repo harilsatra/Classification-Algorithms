@@ -5,8 +5,11 @@ Created on Wed Nov 22 19:42:02 2017
 
 @author: harilsatra
 """
+
+#Import the libraries and inbuilt functions
 import numpy as np
 from scipy.stats import norm
+
 #http://pythoncentral.io/how-to-check-if-a-string-is-a-number-in-python-including-unicode/
 # Function to check if a string is a number or not
 def is_number(s):
@@ -24,11 +27,11 @@ def is_number(s):
     
     return False
 
-# Prompt the user to enter the filename
+#Prompt the user to enter the filename
 #filename = input("Enter the filename with extension: ")
 
 # Read the file specified by the user
-with open('project3_dataset2.txt') as textFile:
+with open('project3_dataset4.txt') as textFile:
     lines = [line.split('\t') for line in textFile]
 
 no_samples = len(lines)
@@ -52,6 +55,7 @@ for j in range(no_attrs):
             data[i][j] = nominal_attr[lines[i][j]]
         else:
             nominal_attr[lines[i][j]] = nominal_count
+            data[i][j] = nominal_attr[lines[i][j]]
             nominal_count += 1
 
 k = 10 # K-fold value
@@ -69,7 +73,7 @@ end = test_len
 
 # 10-fold Cross Validation
 for fold in range(k):
-    
+    print("FOLD", fold+1)
     # Extract the test data and training data
     test_data = data[start:end][:]
     test_true_labels = class_labels[start:end]
@@ -95,11 +99,12 @@ for fold in range(k):
         temp_list_0 = np.unique(temp_0[:,attr_index],return_counts=True)
         temp_dict_0 = dict(zip(temp_list_0[0],temp_list_0[1]))
         cat_count_0[attr_index] = temp_dict_0
-        
+                
         temp_list_1 = np.unique(temp_1[:,attr_index],return_counts=True)
         temp_dict_1 = dict(zip(temp_list_1[0],temp_list_1[1]))
         cat_count_1[attr_index] = temp_dict_1
     
+    print(cat_count_0)
     test_new_labels = []
     for i in range(0,len(test_data)):
         posterior_0 = norm(mean_0,std_0).pdf(test_data[i])
@@ -108,10 +113,15 @@ for fold in range(k):
         post_prob_1 = 1
         for j in range(0,no_attrs-1):
             if j in cat_attrs:
-                prob_0 = cat_count_0[j][test_data[i][j]]/len(temp_0)
-                prob_1 = cat_count_1[j][test_data[i][j]]/len(temp_1)
-                post_prob_0 *= prob_0
-                post_prob_1 *= prob_1
+                if test_data[i][j] in cat_count_0[j]:
+                    prob_0 = cat_count_0[j][test_data[i][j]]/len(temp_0)
+                    post_prob_0 *= prob_0
+                else:
+                    post_prob_0 *= 0
+                if test_data[i][j] in cat_count_1[j]:
+                    prob_1 = cat_count_1[j][test_data[i][j]]/len(temp_1)
+                else:
+                    post_prob_1 *= 0
                 
             else:
                 post_prob_0 *= posterior_0[j]
@@ -119,6 +129,7 @@ for fold in range(k):
          
         final_prob_0 = prior_0 * post_prob_0
         final_prob_1 = prior_1 * post_prob_1
+
         if final_prob_0 > final_prob_1:
             test_new_labels.append(0)
         else:
@@ -139,10 +150,17 @@ for fold in range(k):
                 confusion_matrix[1][0] += 1
     
     # Calculate the evaluation metric for kth fold using the confusion matrix.
-    accuracy += (confusion_matrix[0][0]+confusion_matrix[1][1])/(confusion_matrix[1][0]+confusion_matrix[0][1]+confusion_matrix[0][0]+confusion_matrix[1][1])
-    precision += confusion_matrix[0][0]/(confusion_matrix[0][0]+confusion_matrix[1][0])
-    recall += confusion_matrix[0][0]/(confusion_matrix[0][0]+confusion_matrix[0][1])
-    f1 += (2*confusion_matrix[0][0])/((2*confusion_matrix[0][0])+confusion_matrix[0][1]+confusion_matrix[1][0])
+    accuracy_k = (confusion_matrix[0][0]+confusion_matrix[1][1])/(confusion_matrix[1][0]+confusion_matrix[0][1]+confusion_matrix[0][0]+confusion_matrix[1][1])
+    accuracy += accuracy_k 
+    if confusion_matrix[0][0]+confusion_matrix[1][0] != 0:
+        precision_k = confusion_matrix[0][0]/(confusion_matrix[0][0]+confusion_matrix[1][0])
+        precision += precision_k
+    if confusion_matrix[0][0]+confusion_matrix[0][1] != 0:
+        recall_k = confusion_matrix[0][0]/(confusion_matrix[0][0]+confusion_matrix[0][1])
+        recall += recall_k
+    if (2*confusion_matrix[0][0])+confusion_matrix[0][1]+confusion_matrix[1][0] != 0:
+        f1_k = (2*confusion_matrix[0][0])/((2*confusion_matrix[0][0])+confusion_matrix[0][1]+confusion_matrix[1][0])
+        f1 += f1_k
     
     if fold==8:
         start += test_len
@@ -150,7 +168,15 @@ for fold in range(k):
     else:
         start += test_len
         end += test_len
+        
+    print("Accuracy: " ,accuracy_k)
+    print("Precision: " ,precision_k)
+    print("Recall: " ,recall_k)
+    print("F1-measure: ",f1_k)
+    print()
 
+# Print the evaluation metrics
+print("Average Metrics: ")
 print("Accuracy: " ,accuracy/k)
 print("Precision: " ,precision/k)
 print("Recall: " ,recall/k)
